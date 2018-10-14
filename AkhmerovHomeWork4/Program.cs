@@ -1,5 +1,6 @@
 ﻿namespace AkhmerovHomeWork4
 {
+    using System;
     using Algorithms;
     using static System.Console;
     using static Helpers.Helpers;
@@ -9,21 +10,20 @@
     /// <summary>
     /// Структура обозначений клеток на шахматном поле
     /// </summary>
-
-    struct Cells
+    public struct Cells
     {
         /// <summary>
         /// Обозначение пустой клетки
         /// </summary>
-        public char emptyCell;
+        public const char emptyCell = '.';
         /// <summary>
         /// Обозначение клетки с фигурой
         /// </summary>
-        public char horseCell;
+        public const char horseCell = 'O';
         /// <summary>
         /// Обозначение использованных фигурой клеток
         /// </summary>
-        public char usedTurnCell;
+        public const char usedCell = 'X';
     }
 
     /// <summary>
@@ -49,20 +49,25 @@
     struct Statistics
     {
         /// <summary>
-        /// Статистика чистых операций (без подсчета отмены ходов)
+        /// Статистика ходов фигуры
         /// </summary>
-        public long clearOperations;
+        public long turnOperations;
         /// <summary>
-        /// Статистика всех операций (включая отмены хода)
+        /// Статистика всех операций 
+        /// (включая постановку фигуры, обратные ходы, отрисовку поля,
+        /// подсчет следующего хода фигуры, возможности постановки фигуры, проверку завершения задачи)
         /// </summary>
         public long allOperations;
+        /// <summary>
+        /// Время начала работы алгоритма
+        /// </summary>
+        public DateTime startTime;
     }
 
     /// <summary>
     /// Структура технических переменных
     /// </summary>
-
-    struct TechnicalVariables
+    public struct TechnicalVariables
     {
         /// <summary>
         /// Значение паузы после отрисовки шахматного поля
@@ -82,28 +87,30 @@
 
     class Program
     {
+        /// <summary>
+        /// Шахматное поле
+        /// </summary>
+        private static char[,] chessField;
+        /// <summary>
+        /// Технические переменные
+        /// </summary>
+        private static TechnicalVariables techVar;
+
         static void Main()
         {
-            var cells = new Cells
-            {
-                emptyCell = '.',
-                horseCell = 'O',
-                usedTurnCell = 'X'
-            };
-
-            var techVar = new TechnicalVariables
+            techVar = new TechnicalVariables
             {
                 pauseValue = 0,
-                fieldY = 5,
-                fieldX = 5
+                fieldY = 4,
+                fieldX = 4
             };
+            
+            chessField = new char[techVar.fieldY, techVar.fieldX];
 
-            var testChessField = new char[techVar.fieldY, techVar.fieldX];
+            CreateChessField(ref chessField);
+            DrawChessField(chessField);
 
-            CreateChessField(ref testChessField, cells.emptyCell);
-            DrawChessField(testChessField);
-
-            var algorithm = new SlowAlgorithm(testChessField, cells, techVar);
+            var algorithm = new BasicAlgorithm(chessField, techVar);
             algorithm.StartSearching();
 
             ReadKey();

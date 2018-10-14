@@ -3,18 +3,67 @@
     using System;
     using static System.Console;
 
+    /// <summary>
+    /// Класс методов-помощников
+    /// </summary>
+
     class Helpers
     {
+        #region Операбельные переменные
 
+        /// <summary>
+        /// Высота шахматного поля
+        /// </summary>
+        private static int height;
+        /// <summary>
+        /// Ширина шахматного поля
+        /// </summary>
+        private static int width;
+        /// <summary>
+        /// Сообщение при невозможном решении задачи
+        /// </summary>
+        const string impossible = "Задачу невозможно решить.";
+        /// <summary>
+        /// Сообщение при успешном решении задачи
+        /// </summary>
+        const string finish = "Задача успешно завершена!";
+        /// <summary>
+        /// Время затраченное на решение задачи.
+        /// </summary>
+        private static TimeSpan timeSpent;
+        /// <summary>
+        /// Количество миллисекунд затраченных на решение задачи.
+        /// </summary>
+        private static double msSpent;
+        /// <summary>
+        /// Количество секунд затраченных на решение задачи.
+        /// </summary>
+        private static double secSpent;
+        /// <summary>
+        /// Количество минут затраченных на решение задачи.
+        /// </summary>
+        private static double minSpent;
+        /// <summary>
+        /// Текущий множитель округления миллисекунд.
+        /// </summary>
+        private static int currentMultiSec;
+        /// <summary>
+        /// Множитель необходимый для корректного округления миллисекунд при определенном значении секунд.
+        /// </summary>
+        private const int multiSec = 10;
+        /// <summary>
+        /// Количество секунд/минут в минуте/часе.
+        /// </summary>
+        const int secMinPerMinHour = 60;
+        #endregion
+        
         /// <summary>
         /// Прорисовка шахматного поля на основе полученного двумерного массива
         /// </summary>
         /// <param name="chessField">Двумерный массив (шахматное поле)</param>
-
+        
         public static void DrawChessField(char[,] chessField)
         {
-            var height = chessField.GetLength(0);
-            var width = chessField.GetLength(1);
             Clear();
             WriteLine();
             for (var i = 0; i < chessField.GetLength(0); i++)
@@ -33,15 +82,19 @@
         /// Создание шахматного поля на основе полученного двумерного массива
         /// </summary>
         /// <param name="chessField">Двумерный массив с размером шахматного поля</param>
-        /// <param name="emptyCell">Символ пустой клетки</param>
+        /// <param name="_cells">Структура обозначений шахматного поля</param>
         /// <returns>Двумерный массив (шахматное поле)</returns>
-        public static void CreateChessField(ref char[,] chessField, char emptyCell)
+        /// 
+        public static void CreateChessField(ref char[,] chessField)
         {
-            for (var i = 0; i < chessField.GetLength(0); i++)
+            height = chessField.GetLength(0);
+            width = chessField.GetLength(1);
+            
+            for (var i = 0; i < height; i++)
             {
-                for (var j = 0; j < chessField.GetLength(1); j++)
+                for (var j = 0; j < width; j++)
                 {
-                    chessField[i, j] = emptyCell;
+                    chessField[i, j] = Cells.emptyCell;
                 }
             }
         }
@@ -53,7 +106,7 @@
         public static void ImpossibleTask()
         {
             Clear();
-            const string impossible = "Задачу невозможно решить.";
+            
             CursorTop = WindowHeight / 2;
             CursorLeft = WindowWidth / 2 - impossible.Length;
             ForegroundColor = ConsoleColor.Red;
@@ -67,41 +120,38 @@
         /// <param name="field">Двумерный массив (Шахматное поле)</param>
         /// <param name="finishTurns">Массив с успешными ходами</param>
         /// <param name="stats">Структура статистики</param>
-        /// <param name="cells">Структура обозначений</param>
-
-        public static void CheckFinish(char[,] field, string[] finishTurns, Statistics stats, Cells cells)
+        
+        public static bool CheckFinish(char[,] field, string[] finishTurns, ref Statistics stats)
         {
-            var height = field.GetLength(0);
-            var width = field.GetLength(1);
-
             for (var i = 0; i < height; i++)
             {
+                stats.allOperations++;
                 for (var j = 0; j < width; j++)
                 {
-                    if (field[i, j] == cells.emptyCell)
+                    stats.allOperations++;
+                    if (field[i, j] == Cells.emptyCell)
                     {
-                        return;
+                        return false;
                     }
                 }
             }
 
             TaskFinish(stats, finishTurns);
+            return true;
         }
 
         /// <summary>
-        /// Задача выполнена
+        /// Подсчет итогов успешного выполнения задачи
         /// </summary>
         /// <param name="stats">Структура статистики</param>
         /// <param name="finishTurns">Массив успешных ходов</param>
 
         private static void TaskFinish(Statistics stats, string[] finishTurns)
         {
-            stats.allOperations += stats.clearOperations;
-
-            ForegroundColor = ConsoleColor.Green;
-            const string finish = "Задача успешно завершена!";
             WriteLine("\n\n");
+
             CursorLeft = WindowWidth / 2 - finish.Length;
+            ForegroundColor = ConsoleColor.Green;
             Write(finish);
             ResetColor();
 
@@ -112,7 +162,50 @@
                 WriteLine(turn);
             }
 
-            Write($"\nЧистых операций (без учета количества отмен ходов): {stats.clearOperations:N0}\nВсех операций: {stats.allOperations:N0}");
+            timeSpent = DateTime.Now - stats.startTime;
+            
+            WriteLine($"\nЧистых операций (только постановка фигуры): {stats.turnOperations:N0}\nВсех операций: {stats.allOperations:N0}\n");
+            CalculateSpentTime(stats.allOperations);
+        }
+
+        /// <summary>
+        /// Подсчет затраченного времени и средней производительности.
+        /// </summary>
+        /// <param name="totalOperations">Всего выполненных операций</param>
+
+        private static void CalculateSpentTime(long totalOperations)
+        {
+            msSpent = timeSpent.TotalMilliseconds;
+            secSpent = timeSpent.TotalSeconds;
+            minSpent = timeSpent.TotalMinutes;
+            currentMultiSec = multiSec;
+
+            if (secSpent < 1)
+            {
+                WriteLine($"Всего времени на задачу затрачено: {msSpent:F2}мс.\n");
+                WriteLine($"Времени затрачено на 1 операцию примерно {msSpent / totalOperations:F2}мс");
+            }
+            else
+            {
+                if (secSpent < currentMultiSec)
+                {
+                    msSpent %= 1000;
+                }
+                else
+                {
+                    while (secSpent >= currentMultiSec && secSpent < currentMultiSec * multiSec)
+                    {
+                        currentMultiSec *= multiSec;
+                    }
+
+                    msSpent %= 1000 * currentMultiSec;
+                }
+
+                WriteLine(secSpent < secMinPerMinHour
+                    ? $"Времени затрачено: {secSpent:N0}сек, {msSpent:F2}мс\n"
+                    : $"Времени затрачено: {minSpent:N0}мин, {secSpent % secMinPerMinHour:N0}сек, {msSpent:F2}мс");
+                Write($"Средняя производительность: {totalOperations / timeSpent.TotalSeconds:F2} операций в секунду.");
+            }
         }
     }
 }
